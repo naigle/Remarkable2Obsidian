@@ -16,6 +16,8 @@ RUN curl https://rclone.org/install.sh | bash
 
 WORKDIR /app
 COPY requirements.txt .
+# Install CPU-only PyTorch first to prevent Surya pulling in multi-GB CUDA libraries
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
