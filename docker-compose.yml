@@ -1,0 +1,33 @@
+services:
+
+  sync:
+    build: ./app
+    command: python sync.py
+    restart: unless-stopped
+    volumes:
+      - ./data/converted:/data/converted
+      - ./data/db:/data/db
+      - ./data/rmapi-config:/data/rmapi-config
+      - ./data/rclone-config:/data/rclone-config
+      - ./data/hf-cache:/root/.cache/huggingface
+    environment:
+      - POLL_INTERVAL_MINUTES=${POLL_INTERVAL_MINUTES:-15}
+      - GDRIVE_VAULT_PATH=${GDRIVE_VAULT_PATH:-/Notes/Personal/reMarkable}
+      - OCR_ENABLED=${OCR_ENABLED:-true}
+      - CONVERTED_DIR=/data/converted
+      - DB_PATH=/data/db/sync.db
+      - RMAPI_CONFIG=/data/rmapi-config
+      - RCLONE_CONFIG=/data/rclone-config/rclone.conf
+
+  web:
+    build: ./app
+    command: uvicorn web.main:app --host 0.0.0.0 --port 8080
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-8080}:8080"
+    volumes:
+      - ./data/db:/data/db
+      - ./data/converted:/data/converted
+    environment:
+      - DB_PATH=/data/db/sync.db
+      - CONVERTED_DIR=/data/converted

@@ -1,0 +1,7 @@
+.env
+data/
+app/web/__pycache__/
+app/__pycache__/
+*.pyc
+*.pyo
+rclone/rclone.conf

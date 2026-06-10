@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title_suffix %} — Settings{% endblock %}
+
+{% block content %}
+<h1>Settings</h1>
+
+{% if saved %}
+<div class="alert-success">Settings saved.</div>
+{% endif %}
+
+<form method="post" action="/settings">
+  <div class="card" style="max-width: 480px;">
+
+    <div class="form-group">
+      <label for="poll_interval_minutes">Poll interval (minutes)</label>
+      <input
+        type="number"
+        id="poll_interval_minutes"
+        name="poll_interval_minutes"
+        value="{{ interval }}"
+        min="1"
+        max="1440"
+      >
+      <div style="font-size:12px; color:var(--muted); margin-top:6px;">
+        How often to check reMarkable Cloud for new or updated notebooks.
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>OCR</label>
+      <div class="toggle">
+        <input
+          type="checkbox"
+          id="ocr_enabled"
+          name="ocr_enabled"
+          {% if ocr_enabled %}checked{% endif %}
+        >
+        <label for="ocr_enabled" style="margin:0; color:var(--text)">
+          Extract text with Surya OCR
+        </label>
+      </div>
+      <div style="font-size:12px; color:var(--muted); margin-top:6px;">
+        Adds searchable OCR text below each page image in the Obsidian note.
+        Disable to speed up syncs or reduce CPU usage.
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Save settings</button>
+  </div>
+</form>
+{% endblock %}

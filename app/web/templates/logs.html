@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title_suffix %} — Sync Logs{% endblock %}
+
+{% block content %}
+<h1>Sync Logs</h1>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Started</th>
+        <th>Finished</th>
+        <th>Processed</th>
+        <th>Failed</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for run in runs %}
+      <tr>
+        <td style="color:var(--muted)">{{ run.id }}</td>
+        <td>{{ run.started_at }}</td>
+        <td>{{ run.finished_at or '—' }}</td>
+        <td>{{ run.docs_processed }}</td>
+        <td>{{ run.docs_failed }}</td>
+        <td>
+          {% if run.status == 'completed' %}<span class="badge badge-green">completed</span>
+          {% elif run.status == 'failed' %}<span class="badge badge-red">failed</span>
+          {% elif run.status == 'partial' %}<span class="badge badge-yellow">partial</span>
+          {% elif run.status == 'running' %}<span class="badge badge-yellow">running</span>
+          {% else %}<span class="badge badge-grey">{{ run.status }}</span>{% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" style="color:var(--muted); text-align:center; padding:24px">No sync runs yet</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

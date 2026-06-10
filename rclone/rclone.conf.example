@@ -1,0 +1,8 @@
+# Copy this to ../data/rclone-config/rclone.conf
+# Then run: docker compose run --rm sync rclone config reconnect gdrive:
+# (or run initial auth with: docker compose run --rm -p 53682:53682 sync rclone config)
+
+[gdrive]
+type = drive
+scope = drive
+# token and other fields are filled in automatically by: rclone config

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title_suffix %} — Documents{% endblock %}
+
+{% block content %}
+<h1>Documents</h1>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Title</th>
+        <th>Pages</th>
+        <th>Last Modified</th>
+        <th>Synced At</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for doc in documents %}
+      <tr>
+        <td>{{ doc.title }}</td>
+        <td>{{ doc.page_count or '—' }}</td>
+        <td style="color:var(--muted)">{{ doc.last_modified or '—' }}</td>
+        <td style="color:var(--muted)">{{ doc.synced_at or '—' }}</td>
+        <td>
+          {% if doc.sync_status == 'synced' %}<span class="badge badge-green">synced</span>
+          {% elif doc.sync_status == 'failed' %}
+            <span class="badge badge-red" title="{{ doc.error or '' }}">failed</span>
+          {% elif doc.sync_status == 'pending' %}<span class="badge badge-grey">pending</span>
+          {% else %}<span class="badge badge-grey">{{ doc.sync_status }}</span>{% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" style="color:var(--muted); text-align:center; padding:24px">No documents synced yet</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

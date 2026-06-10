@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title_suffix %} — Dashboard{% endblock %}
+
+{% block content %}
+<h1>
+  {% if health == 'completed' %}
+    <span class="dot dot-green"></span>
+  {% elif health == 'failed' %}
+    <span class="dot dot-red"></span>
+  {% elif health == 'partial' %}
+    <span class="dot dot-yellow"></span>
+  {% else %}
+    <span class="dot dot-grey"></span>
+  {% endif %}
+  Dashboard
+</h1>
+
+<div class="cards">
+  <div class="card">
+    <div class="card-label">Synced</div>
+    <div class="card-value">{{ stats.total_synced }}</div>
+    <div class="card-sub">documents</div>
+  </div>
+  <div class="card">
+    <div class="card-label">Failed</div>
+    <div class="card-value" style="color: {% if stats.total_failed > 0 %}var(--red){% else %}var(--text){% endif %}">
+      {{ stats.total_failed }}
+    </div>
+    <div class="card-sub">last run</div>
+  </div>
+  <div class="card">
+    <div class="card-label">Interval</div>
+    <div class="card-value">{{ interval }}</div>
+    <div class="card-sub">minutes</div>
+  </div>
+  <div class="card">
+    <div class="card-label">Status</div>
+    <div class="card-value" style="font-size:16px; padding-top:6px;">
+      {% if health == 'completed' %}
+        <span class="badge badge-green">Healthy</span>
+      {% elif health == 'failed' %}
+        <span class="badge badge-red">Failed</span>
+      {% elif health == 'partial' %}
+        <span class="badge badge-yellow">Partial</span>
+      {% elif health == 'running' %}
+        <span class="badge badge-yellow">Running</span>
+      {% else %}
+        <span class="badge badge-grey">No runs yet</span>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Last sync</h2>
+  <div class="table-wrap">
+    <table>
+      <tr>
+        <th>Field</th>
+        <th>Value</th>
+      </tr>
+      {% if last_run %}
+      <tr><td>Started</td><td>{{ last_run.started_at }}</td></tr>
+      <tr><td>Finished</td><td>{{ last_run.finished_at or '—' }}</td></tr>
+      <tr><td>Processed</td><td>{{ last_run.docs_processed }}</td></tr>
+      <tr><td>Failed</td><td>{{ last_run.docs_failed }}</td></tr>
+      <tr><td>Status</td>
+        <td>
+          {% if last_run.status == 'completed' %}<span class="badge badge-green">completed</span>
+          {% elif last_run.status == 'failed' %}<span class="badge badge-red">failed</span>
+          {% elif last_run.status == 'partial' %}<span class="badge badge-yellow">partial</span>
+          {% elif last_run.status == 'running' %}<span class="badge badge-yellow">running</span>
+          {% else %}<span class="badge badge-grey">{{ last_run.status }}</span>{% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="2" style="color:var(--muted)">No sync runs yet</td></tr>
+      {% endif %}
+    </table>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Next sync</h2>
+  <p style="color:var(--muted); margin-bottom:16px;">
+    {% if next_sync %}
+      Scheduled at <strong style="color:var(--text)">{{ next_sync }}</strong>
+    {% else %}
+      Not yet scheduled
+    {% endif %}
+  </p>
+  <form method="post" action="/sync/trigger">
+    <button type="submit" class="btn btn-primary">Sync now</button>
+  </form>
+</div>
+{% endblock %}
