@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y \
 
 # rmapi — reMarkable Cloud CLI
 RUN curl -fsSL \
-    https://github.com/juruen/rmapi/releases/latest/download/rmapi-linux-amd64.tar.gz \
+    https://github.com/juruen/rmapi/releases/latest/download/rmapi-linuxx86-64.tar.gz \
     | tar -xz -C /usr/local/bin && chmod +x /usr/local/bin/rmapi
 
 # rclone
