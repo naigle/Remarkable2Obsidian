@@ -16,7 +16,7 @@ services:
       - OCR_ENABLED=${OCR_ENABLED:-true}
       - CONVERTED_DIR=/data/converted
       - DB_PATH=/data/db/sync.db
-      - RMAPI_CONFIG=/data/rmapi-config
+      - RMAPI_CONFIG=/data/rmapi-config/rmapi.conf
       - RCLONE_CONFIG=/data/rclone-config/rclone.conf
 
   web:
