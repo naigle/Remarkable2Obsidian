@@ -32,7 +32,7 @@ def _get_surya_models():
     global _surya_models
     if _surya_models is None:
         log.info("Loading Surya OCR models (first run may take a while)...")
-        from surya.model.detection.segformer import load_model as load_det, load_processor as load_det_proc
+        from surya.model.detection.model import load_model as load_det, load_processor as load_det_proc
         from surya.model.recognition.model import load_model as load_rec
         from surya.model.recognition.processor import load_processor as load_rec_proc
         _surya_models = (load_det(), load_det_proc(), load_rec(), load_rec_proc())
