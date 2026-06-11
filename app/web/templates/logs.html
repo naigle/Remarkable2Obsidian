@@ -2,7 +2,10 @@
 {% block title_suffix %} — Sync Logs{% endblock %}
 
 {% block content %}
-<h1>Sync Logs</h1>
+<div class="page-header">
+  <div class="page-title">Sync Logs</div>
+  <div class="page-sub">Run history</div>
+</div>
 
 <div class="table-wrap">
   <table>
@@ -19,11 +22,11 @@
     <tbody>
       {% for run in runs %}
       <tr>
-        <td style="color:var(--muted)">{{ run.id }}</td>
-        <td>{{ run.started_at }}</td>
-        <td>{{ run.finished_at or '—' }}</td>
+        <td class="mono" style="color:var(--muted)">{{ run.id }}</td>
+        <td class="mono">{{ run.started_at }}</td>
+        <td class="mono" style="color:var(--muted-2)">{{ run.finished_at or '—' }}</td>
         <td>{{ run.docs_processed }}</td>
-        <td>{{ run.docs_failed }}</td>
+        <td style="color: {% if run.docs_failed > 0 %}var(--red){% else %}var(--muted){% endif %}">{{ run.docs_failed }}</td>
         <td>
           {% if run.status == 'completed' %}<span class="badge badge-green">completed</span>
           {% elif run.status == 'failed' %}<span class="badge badge-red">failed</span>
@@ -33,7 +36,7 @@
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="6" style="color:var(--muted); text-align:center; padding:24px">No sync runs yet</td></tr>
+      <tr class="empty-row"><td colspan="6">No sync runs yet</td></tr>
       {% endfor %}
     </tbody>
   </table>

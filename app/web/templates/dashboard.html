@@ -2,18 +2,23 @@
 {% block title_suffix %} — Dashboard{% endblock %}
 
 {% block content %}
-<h1>
-  {% if health == 'completed' %}
-    <span class="dot dot-green"></span>
-  {% elif health == 'failed' %}
-    <span class="dot dot-red"></span>
-  {% elif health == 'partial' %}
-    <span class="dot dot-yellow"></span>
-  {% else %}
-    <span class="dot dot-grey"></span>
-  {% endif %}
-  Dashboard
-</h1>
+<div class="page-header">
+  <div class="page-title">
+    {% if health == 'completed' %}
+      <span class="dot dot-green"></span>
+    {% elif health == 'failed' %}
+      <span class="dot dot-red"></span>
+    {% elif health == 'partial' %}
+      <span class="dot dot-yellow"></span>
+    {% elif health == 'running' %}
+      <span class="dot dot-yellow"></span>
+    {% else %}
+      <span class="dot dot-grey"></span>
+    {% endif %}
+    Dashboard
+  </div>
+  <div class="page-sub">reMarkable Cloud → Obsidian</div>
+</div>
 
 <div class="cards">
   <div class="card">
@@ -35,15 +40,15 @@
   </div>
   <div class="card">
     <div class="card-label">Status</div>
-    <div class="card-value" style="font-size:16px; padding-top:6px;">
+    <div style="margin-top: 8px;">
       {% if health == 'completed' %}
-        <span class="badge badge-green">Healthy</span>
+        <span class="badge badge-green"><span class="dot dot-green"></span>Healthy</span>
       {% elif health == 'failed' %}
-        <span class="badge badge-red">Failed</span>
+        <span class="badge badge-red"><span class="dot dot-red"></span>Failed</span>
       {% elif health == 'partial' %}
-        <span class="badge badge-yellow">Partial</span>
+        <span class="badge badge-yellow"><span class="dot dot-yellow"></span>Partial</span>
       {% elif health == 'running' %}
-        <span class="badge badge-yellow">Running</span>
+        <span class="badge badge-yellow"><span class="dot dot-yellow"></span>Running</span>
       {% else %}
         <span class="badge badge-grey">No runs yet</span>
       {% endif %}
@@ -60,11 +65,12 @@
         <th>Value</th>
       </tr>
       {% if last_run %}
-      <tr><td>Started</td><td>{{ last_run.started_at }}</td></tr>
-      <tr><td>Finished</td><td>{{ last_run.finished_at or '—' }}</td></tr>
-      <tr><td>Processed</td><td>{{ last_run.docs_processed }}</td></tr>
-      <tr><td>Failed</td><td>{{ last_run.docs_failed }}</td></tr>
-      <tr><td>Status</td>
+      <tr><td style="color:var(--muted-2)">Started</td><td class="mono">{{ last_run.started_at }}</td></tr>
+      <tr><td style="color:var(--muted-2)">Finished</td><td class="mono">{{ last_run.finished_at or '—' }}</td></tr>
+      <tr><td style="color:var(--muted-2)">Processed</td><td>{{ last_run.docs_processed }}</td></tr>
+      <tr><td style="color:var(--muted-2)">Failed</td><td>{{ last_run.docs_failed }}</td></tr>
+      <tr>
+        <td style="color:var(--muted-2)">Status</td>
         <td>
           {% if last_run.status == 'completed' %}<span class="badge badge-green">completed</span>
           {% elif last_run.status == 'failed' %}<span class="badge badge-red">failed</span>
@@ -74,7 +80,7 @@
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="2" style="color:var(--muted)">No sync runs yet</td></tr>
+      <tr class="empty-row"><td colspan="2">No sync runs yet</td></tr>
       {% endif %}
     </table>
   </div>
@@ -82,15 +88,21 @@
 
 <div class="section">
   <h2>Next sync</h2>
-  <p style="color:var(--muted); margin-bottom:16px;">
+  <p style="color:var(--muted-2); margin-bottom:18px; font-size:13px;">
     {% if next_sync %}
-      Scheduled at <strong style="color:var(--text)">{{ next_sync }}</strong>
+      Scheduled at <span class="mono" style="color:var(--text)">{{ next_sync }}</span>
     {% else %}
       Not yet scheduled
     {% endif %}
   </p>
   <form method="post" action="/sync/trigger">
-    <button type="submit" class="btn btn-primary">Sync now</button>
+    <button type="submit" class="btn btn-primary">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M2 8a6 6 0 1 0 6-6"/>
+        <path d="M2 4v4h4"/>
+      </svg>
+      Sync now
+    </button>
   </form>
 </div>
 {% endblock %}

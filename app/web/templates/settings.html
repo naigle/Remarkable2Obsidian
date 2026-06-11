@@ -2,7 +2,10 @@
 {% block title_suffix %} — Settings{% endblock %}
 
 {% block content %}
-<h1>Settings</h1>
+<div class="page-header">
+  <div class="page-title">Settings</div>
+  <div class="page-sub">Sync configuration</div>
+</div>
 
 {% if saved %}
 <div class="alert-success">Settings saved.</div>
@@ -21,9 +24,7 @@
         min="1"
         max="1440"
       >
-      <div style="font-size:12px; color:var(--muted); margin-top:6px;">
-        How often to check reMarkable Cloud for new or updated notebooks.
-      </div>
+      <div class="field-hint">How often to check reMarkable Cloud for new or updated notebooks.</div>
     </div>
 
     <div class="form-group">
@@ -35,14 +36,9 @@
           name="ocr_enabled"
           {% if ocr_enabled %}checked{% endif %}
         >
-        <label for="ocr_enabled" style="margin:0; color:var(--text)">
-          Extract text with Surya OCR
-        </label>
+        <label for="ocr_enabled">Extract text with Tesseract OCR</label>
       </div>
-      <div style="font-size:12px; color:var(--muted); margin-top:6px;">
-        Adds searchable OCR text below each page image in the Obsidian note.
-        Disable to speed up syncs or reduce CPU usage.
-      </div>
+      <div class="field-hint">Adds searchable text below each page image in the Obsidian note. Disable to speed up syncs.</div>
     </div>
 
     <button type="submit" class="btn btn-primary">Save settings</button>
