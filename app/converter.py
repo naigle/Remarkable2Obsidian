@@ -1,5 +1,5 @@
 """
-Pipeline: rmapi get → .rmdoc → rmscene render → PIL images → Surya OCR → Markdown
+Pipeline: rmapi get → .rmdoc → rmscene render → PIL images → TrOCR → Markdown
 """
 
 import io
@@ -106,10 +106,60 @@ def _rmdoc_to_images(rmdoc_path: str) -> list:
     return images
 
 
+# TrOCR model — loaded once
+_trocr = None
+
+
+def _get_trocr():
+    global _trocr
+    if _trocr is None:
+        log.info("Loading TrOCR handwriting model (first run downloads ~350MB)...")
+        from transformers import TrOCRProcessor, VisionEncoderDecoderModel
+        _trocr = (
+            TrOCRProcessor.from_pretrained("microsoft/trocr-base-handwritten"),
+            VisionEncoderDecoderModel.from_pretrained("microsoft/trocr-base-handwritten"),
+        )
+        log.info("TrOCR ready")
+    return _trocr
+
+
+def _detect_lines(img: Image.Image, min_height=10, padding=6, threshold=15):
+    """Find horizontal text line bands via row ink-sum projection."""
+    import numpy as np
+    gray = np.array(img.convert("L"))
+    ink = 255 - gray                      # invert: ink pixels = high value
+    row_sums = ink.sum(axis=1)
+
+    lines, in_line, start = [], False, 0
+    for i, s in enumerate(row_sums):
+        if not in_line and s > threshold:
+            in_line, start = True, i
+        elif in_line and s <= threshold:
+            in_line = False
+            if i - start >= min_height:
+                lines.append((max(0, start - padding), min(img.height, i + padding)))
+    if in_line and img.height - start >= min_height:
+        lines.append((max(0, start - padding), img.height))
+    return lines
+
+
 def _ocr_page(img: Image.Image) -> str:
-    """Run Tesseract OCR on a PIL image, return text."""
-    import pytesseract
-    return pytesseract.image_to_string(img, lang="eng").strip()
+    """Run TrOCR handwriting OCR on a PIL image, return text."""
+    import torch
+    processor, model = _get_trocr()
+    lines = _detect_lines(img)
+    if not lines:
+        return ""
+    texts = []
+    for y1, y2 in lines:
+        crop = img.crop((0, y1, img.width, y2)).convert("RGB")
+        pixel_values = processor(crop, return_tensors="pt").pixel_values
+        with torch.no_grad():
+            ids = model.generate(pixel_values)
+        text = processor.batch_decode(ids, skip_special_tokens=True)[0].strip()
+        if text:
+            texts.append(text)
+    return "\n".join(texts)
 
 
 def export_and_convert(doc_path, title, ocr_enabled=True):
