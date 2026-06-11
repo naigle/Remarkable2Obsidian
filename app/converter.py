@@ -1,24 +1,30 @@
 """
-Pipeline: rmapi export → PDF → per-page SVG + PNG → Surya OCR → Markdown
+Pipeline: rmapi get → .rmdoc → rmscene render → PIL images → Surya OCR → Markdown
 """
 
+import io
 import logging
 import os
 import subprocess
 import tempfile
+import zipfile
 from datetime import datetime
 from pathlib import Path
 
-import fitz  # PyMuPDF
-from PIL import Image
+from PIL import Image, ImageDraw
+from rmscene import read_blocks, SceneLineItemBlock
 
 log = logging.getLogger(__name__)
 
 CONVERTED_DIR = os.environ.get("CONVERTED_DIR", "/data/converted")
-RMAPI_CONFIG = os.environ.get("RMAPI_CONFIG", "/data/rmapi-config")
+RMAPI_CONFIG  = os.environ.get("RMAPI_CONFIG",  "/data/rmapi-config/rmapi.conf")
 RCLONE_CONFIG = os.environ.get("RCLONE_CONFIG", "/data/rclone-config/rclone.conf")
 
-# Surya models — loaded once and reused
+# reMarkable canvas dimensions
+RM_WIDTH  = 1404
+RM_HEIGHT = 1872
+
+# Surya models — loaded once
 _surya_models = None
 
 
@@ -38,7 +44,7 @@ def _rmapi(*args):
     env = {**os.environ, "RMAPI_CONFIG": RMAPI_CONFIG}
     result = subprocess.run(
         ["rmapi"] + list(args),
-        capture_output=True, text=True, env=env
+        capture_output=True, text=True, env=env, timeout=120
     )
     if result.returncode != 0:
         raise RuntimeError(f"rmapi {' '.join(args)} failed:\n{result.stderr.strip()}")
@@ -47,50 +53,86 @@ def _rmapi(*args):
 
 def list_documents():
     """
-    Returns list of dicts: {id, title, last_modified}.
-
-    rmapi find returns one path per line, e.g.:
-        /My Notes/Shopping List
-        /Quick Notes
-
-    rmapi stat <path> returns JSON metadata including ID and ModifiedClient.
+    Returns list of dicts: {id, title, path, last_modified}.
+    Uses ddvk rmapi which outputs lines like:
+        [f]  /Folder/NotebookName
+        [d]  /Folder
     """
-    raw = _rmapi("find")
-    paths = [line.strip() for line in raw.splitlines() if line.strip()]
-
+    raw = _rmapi("find", "/")
     documents = []
-    for path in paths:
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line.startswith("[f]"):
+            continue
+        path = line[3:].strip()
+        title = path.rsplit("/", 1)[-1]
+        # Use path as stable ID; get modification time via stat
+        last_modified = ""
         try:
-            meta_raw = _rmapi("stat", path)
-            meta = _parse_stat(meta_raw)
-            documents.append({
-                "id": meta.get("ID", path),
-                "title": path.rsplit("/", 1)[-1],
-                "path": path,
-                "last_modified": meta.get("ModifiedClient", ""),
-            })
-        except Exception as e:
-            log.warning("Could not stat %s: %s", path, e)
-
+            stat_raw = _rmapi("stat", path)
+            for sline in stat_raw.splitlines():
+                if "ModifiedClient" in sline or "Modified" in sline:
+                    last_modified = sline.split(":", 1)[-1].strip()
+                    break
+        except Exception:
+            pass
+        documents.append({
+            "id": path,
+            "title": title,
+            "path": path,
+            "last_modified": last_modified,
+        })
     return documents
 
 
-def _parse_stat(raw):
-    """
-    Parse rmapi stat output into a dict.
-    rmapi stat returns key: value lines.
-    """
-    meta = {}
-    for line in raw.splitlines():
-        if ":" in line:
-            key, _, value = line.partition(":")
-            meta[key.strip()] = value.strip()
-    return meta
+def _render_rm_page(rm_data: bytes) -> Image.Image:
+    """Render a single .rm stroke page to a PIL Image."""
+    img = Image.new("RGB", (RM_WIDTH, RM_HEIGHT), "white")
+    draw = ImageDraw.Draw(img)
+    x_offset = RM_WIDTH / 2
+    try:
+        blocks = list(read_blocks(io.BytesIO(rm_data)))
+        for block in blocks:
+            if not isinstance(block, SceneLineItemBlock):
+                continue
+            if block.item is None or block.item.value is None:
+                continue
+            line = block.item.value
+            pts = getattr(line, "points", [])
+            if len(pts) < 2:
+                continue
+            coords = [(int(p.x + x_offset), int(p.y)) for p in pts]
+            stroke_width = max(1, int(getattr(pts[0], "width", 16) / 8))
+            draw.line(coords, fill="black", width=stroke_width)
+    except Exception as e:
+        log.warning("Stroke render error: %s", e)
+    return img
+
+
+def _rmdoc_to_images(rmdoc_path: str) -> list:
+    """Extract and render all pages from a .rmdoc zip."""
+    images = []
+    with zipfile.ZipFile(rmdoc_path) as z:
+        rm_files = sorted(n for n in z.namelist() if n.endswith(".rm"))
+        for rm_name in rm_files:
+            rm_data = z.read(rm_name)
+            images.append(_render_rm_page(rm_data))
+    return images
+
+
+def _ocr_page(img: Image.Image) -> str:
+    """Run Surya OCR on a PIL image, return text."""
+    from surya.ocr import run_ocr
+    det_model, det_proc, rec_model, rec_proc = _get_surya_models()
+    results = run_ocr([img], [["en"]], det_model, det_proc, rec_model, rec_proc)
+    if not results:
+        return ""
+    return "\n".join(line.text for line in results[0].text_lines)
 
 
 def export_and_convert(doc_path, title, ocr_enabled=True):
     """
-    Export one document and run the full conversion pipeline.
+    Full pipeline for one document.
     Returns (output_dir: str, page_count: int).
     """
     safe_title = _safe_filename(title)
@@ -98,63 +140,44 @@ def export_and_convert(doc_path, title, ocr_enabled=True):
     output_dir.mkdir(parents=True, exist_ok=True)
 
     with tempfile.TemporaryDirectory() as tmp:
-        # Export as PDF
-        _rmapi("export", doc_path, tmp)
-        pdfs = list(Path(tmp).glob("*.pdf"))
-        if not pdfs:
-            raise RuntimeError(f"No PDF produced for {doc_path!r}")
-        pdf_path = pdfs[0]
+        # ddvk rmapi: `rmapi get <path>` downloads as <name>.rmdoc
+        _rmapi("get", doc_path, tmp)
+        rmdocs = list(Path(tmp).glob("*.rmdoc"))
+        if not rmdocs:
+            raise RuntimeError(f"No .rmdoc produced for {doc_path!r}")
+        rmdoc_path = str(rmdocs[0])
 
-        doc = fitz.open(str(pdf_path))
-        page_count = len(doc)
+        images = _rmdoc_to_images(rmdoc_path)
+        page_count = len(images)
+
         md_parts = _frontmatter(title)
 
-        for i, page in enumerate(doc):
+        for i, img in enumerate(images):
             page_num = i + 1
-            svg_name = f"page-{page_num:02d}.svg"
-            png_name = f"page-{page_num:02d}.png"
+            svg_name = f"page-{page_num:02d}.png"  # PNG embeds better in Obsidian than SVG from rmscene
+            img_path = output_dir / svg_name
 
-            # SVG for Obsidian embedding
-            svg_data = page.get_svg_image(matrix=fitz.Matrix(1, 1))
-            (output_dir / svg_name).write_text(svg_data, encoding="utf-8")
-
+            # Save page image for Obsidian embedding
+            img.save(str(img_path), format="PNG")
             md_parts.append(f"![[{svg_name}]]")
             md_parts.append("")
 
             if ocr_enabled:
-                # PNG at 2× scale for better OCR accuracy
-                pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
-                png_path = output_dir / png_name
-                pix.save(str(png_path))
                 try:
-                    text = _ocr_page(png_path)
+                    text = _ocr_page(img)
                     if text.strip():
                         md_parts.append(text.strip())
                         md_parts.append("")
                 except Exception as e:
                     log.warning("OCR failed on page %d of %r: %s", page_num, title, e)
-                finally:
-                    png_path.unlink(missing_ok=True)
 
             md_parts.append("---")
             md_parts.append("")
-
-        doc.close()
 
     md_path = output_dir / f"{safe_title}.md"
     md_path.write_text("\n".join(md_parts), encoding="utf-8")
     log.info("Converted %r → %s (%d pages)", title, output_dir, page_count)
     return str(output_dir), page_count
-
-
-def _ocr_page(png_path):
-    from surya.ocr import run_ocr
-    det_model, det_proc, rec_model, rec_proc = _get_surya_models()
-    img = Image.open(str(png_path))
-    results = run_ocr([img], [["en"]], det_model, det_proc, rec_model, rec_proc)
-    if not results:
-        return ""
-    return "\n".join(line.text for line in results[0].text_lines)
 
 
 def rclone_push(gdrive_path):

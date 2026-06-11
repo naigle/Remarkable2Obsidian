@@ -6,9 +6,9 @@ RUN apt-get update && apt-get install -y \
     libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
-# rmapi — reMarkable Cloud CLI
+# rmapi — ddvk fork (supports current reMarkable Cloud API)
 RUN curl -fsSL \
-    https://github.com/juruen/rmapi/releases/latest/download/rmapi-linuxx86-64.tar.gz \
+    https://github.com/ddvk/rmapi/releases/latest/download/rmapi-linux-amd64.tar.gz \
     | tar -xz -C /usr/local/bin && chmod +x /usr/local/bin/rmapi
 
 # rclone

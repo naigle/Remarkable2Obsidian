@@ -1,5 +1,5 @@
-PyMuPDF==1.24.5
 Pillow>=10.0.0
+rmscene>=0.6.0
 surya-ocr>=0.6.0
 fastapi>=0.110.0
 uvicorn>=0.27.0
