@@ -40,11 +40,11 @@ def _get_surya_models():
     return _surya_models
 
 
-def _rmapi(*args):
+def _rmapi(*args, cwd=None):
     env = {**os.environ, "RMAPI_CONFIG": RMAPI_CONFIG}
     result = subprocess.run(
         ["rmapi"] + list(args),
-        capture_output=True, text=True, env=env, timeout=120
+        capture_output=True, text=True, env=env, timeout=120, cwd=cwd
     )
     if result.returncode != 0:
         raise RuntimeError(f"rmapi {' '.join(args)} failed:\n{result.stderr.strip()}")
@@ -140,8 +140,8 @@ def export_and_convert(doc_path, title, ocr_enabled=True):
     output_dir.mkdir(parents=True, exist_ok=True)
 
     with tempfile.TemporaryDirectory() as tmp:
-        # ddvk rmapi: `rmapi get <path>` downloads as <name>.rmdoc
-        _rmapi("get", doc_path, tmp)
+        # ddvk rmapi: `rmapi get <path>` downloads to cwd as <name>.rmdoc
+        _rmapi("get", doc_path, cwd=tmp)
         rmdocs = list(Path(tmp).glob("*.rmdoc"))
         if not rmdocs:
             raise RuntimeError(f"No .rmdoc produced for {doc_path!r}")
