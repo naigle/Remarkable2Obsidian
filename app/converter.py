@@ -24,20 +24,6 @@ RCLONE_CONFIG = os.environ.get("RCLONE_CONFIG", "/data/rclone-config/rclone.conf
 RM_WIDTH  = 1404
 RM_HEIGHT = 1872
 
-# Surya models — loaded once (surya-ocr 0.6.x API)
-_surya_models = None
-
-
-def _get_surya_models():
-    global _surya_models
-    if _surya_models is None:
-        log.info("Loading Surya OCR models (first run may take a while)...")
-        from surya.model.detection.model import load_model as load_det, load_processor as load_det_proc
-        from surya.model.recognition.model import load_model as load_rec
-        from surya.model.recognition.processor import load_processor as load_rec_proc
-        _surya_models = (load_det(), load_det_proc(), load_rec(), load_rec_proc())
-        log.info("Surya models ready")
-    return _surya_models
 
 
 def _rmapi(*args, cwd=None):
@@ -121,13 +107,9 @@ def _rmdoc_to_images(rmdoc_path: str) -> list:
 
 
 def _ocr_page(img: Image.Image) -> str:
-    """Run Surya OCR on a PIL image, return text."""
-    from surya.ocr import run_ocr
-    det_model, det_proc, rec_model, rec_proc = _get_surya_models()
-    results = run_ocr([img], [["en"]], det_model, det_proc, rec_model, rec_proc)
-    if not results:
-        return ""
-    return "\n".join(line.text for line in results[0].text_lines)
+    """Run Tesseract OCR on a PIL image, return text."""
+    import pytesseract
+    return pytesseract.image_to_string(img, lang="eng").strip()
 
 
 def export_and_convert(doc_path, title, ocr_enabled=True):

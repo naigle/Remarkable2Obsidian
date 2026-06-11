@@ -4,6 +4,7 @@ RUN apt-get update && apt-get install -y \
     curl unzip \
     libglib2.0-0 libsm6 libxext6 libxrender-dev \
     libgomp1 libgl1 \
+    tesseract-ocr tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/*
 
 # rmapi — ddvk fork (supports current reMarkable Cloud API)
